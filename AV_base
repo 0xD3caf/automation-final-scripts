@@ -1,0 +1,50 @@
+import requests, hashlib, time, os
+from time import sleep
+
+def scan(in_file):
+	print(in_file)
+	API_KEY = "ad339e729d83f12a897462dd0ccbd9e193b5e7cb1e12b8045a6cc877afa5d7b3"
+	url = 'https://www.virustotal.com/vtapi/v2/file/scan'
+	file = in_file
+	files = {'file': (file, open(file,'rb'))}
+	try:
+		response = requests.post(url, files=files, params={'apikey': API_KEY})
+		response_data = response.json()
+		resource = response_data.get("resource")
+	except:
+		print("looks like this file didnt work")
+		#resource = "d140c244ef892e59c7f68bd0c6f74bb711032563e2a12fa9dda5b760daecd556"
+	url = 'https://www.virustotal.com/vtapi/v2/file/report'
+	for i in range(6):	
+		try:
+			resp = requests.get(url, params={'apikey': API_KEY, 'resource': resource})
+			print(resp.json())
+			resp = resp.json()
+			break
+		except:
+			sleep(5)
+			continue
+	total_checked = resp.get("total") 
+	hits = resp.get("positives")
+	if hits == 0:
+		percent = 0
+	else:
+		percent = total_checked/hits
+	return percent
+
+
+scan("Test2.txt")
+
+def scanner(current_dir):
+	file_checksums = {}
+	while True:
+		files = os.listdir(current_dir)
+		if file not in file_checksums.getkeys():
+			hasher = hashlib.md5()
+			with open(file, 'rb') as afile:
+				buf = afile.read()
+				hasher.update(buf)
+			file_checksums.update({file: hasher})
+			print("New file detected: " + file)
+		time.sleep(300)
+	pass
